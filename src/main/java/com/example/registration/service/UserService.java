@@ -1,5 +1,6 @@
 package com.example.registration.service;
 
+import com.example.registration.email.EmailSender;
 import com.example.registration.entity.ConfirmationToken;
 import com.example.registration.entity.User;
 import com.example.registration.repository.UserRepository;
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -21,6 +23,7 @@ public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final ConfirmationTokenService confirmationTokenService;
+    private final EmailSender emailSender;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -29,8 +32,16 @@ public class UserService implements UserDetailsService {
     }
 
     public String signUpUser(User user) {
-        boolean userExist = userRepository.findByEmail(user.getEmail()).isPresent();
-        if (userExist) {
+        Optional<User> savedUser = userRepository.findByEmail(user.getEmail());
+        if (savedUser.isPresent()) {
+            if (user.getfirstName().equals(savedUser.get().getfirstName()) &&
+                user.getLastName().equals(savedUser.get().getLastName())) {
+                if (!user.isEnabled()) {
+                    emailSender.send(user.getEmail(), buildEmail(user.getfirstName()));
+                }
+            }
+            // TODO check if attributes are the same and
+            // TODO if email not confirmed send confirmation mail
             throw new IllegalStateException("email already taken");
         }
         String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
@@ -45,7 +56,10 @@ public class UserService implements UserDetailsService {
                 user
         );
         confirmationTokenService.saveConfirmationToken(confirmationToken);
-        // TODO send email
         return token;
+    }
+
+    public int enableUser(String email) {
+        return userRepository.enableAppUser(email);
     }
 }
