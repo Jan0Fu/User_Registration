@@ -1,6 +1,6 @@
 package com.example.registration.controller;
 
-import com.example.registration.service.RegistrationRequest;
+import com.example.registration.entity.User;
 import com.example.registration.service.RegistrationService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +13,7 @@ public class UserController {
     private RegistrationService registrationService;
 
     @PostMapping
-    public String register(@RequestBody RegistrationRequest request) {
+    public String register(@RequestBody User request) {
         return registrationService.register(request);
     }
 

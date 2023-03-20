@@ -33,21 +33,6 @@ public class UserService implements UserDetailsService {
 
     public String signUpUser(User user) {
         Optional<User> savedUser = userRepository.findByEmail(user.getEmail());
-        if (savedUser.isPresent()) {
-            if (user.getfirstName().equals(savedUser.get().getfirstName()) &&
-                user.getLastName().equals(savedUser.get().getLastName())) {
-                if (!user.isEnabled()) {
-                    emailSender.send(user.getEmail(), buildEmail(user.getfirstName()));
-                }
-            }
-            // TODO check if attributes are the same and
-            // TODO if email not confirmed send confirmation mail
-            throw new IllegalStateException("email already taken");
-        }
-        String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
-        user.setPassword(encodedPassword);
-        userRepository.save(user);
-
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = new ConfirmationToken(
                 token,
@@ -55,8 +40,23 @@ public class UserService implements UserDetailsService {
                 LocalDateTime.now().plusMinutes(15),
                 user
         );
+        if (savedUser.isPresent()) {
+            if (savedUser.get().equals(user) && (!user.isEnabled())) sendMail(user, token);
+            // TODO check if attributes are the same and
+            // TODO if email not confirmed send confirmation mail
+            throw new IllegalStateException("email already taken");
+        }
+        String encodedPassword = bCryptPasswordEncoder.encode(user.getPassword());
+        user.setPassword(encodedPassword);
+
+        userRepository.save(user);
         confirmationTokenService.saveConfirmationToken(confirmationToken);
         return token;
+    }
+
+    public void sendMail(User user, String token) {
+        String link = "http://localhost:8080/api/v1/registration/confirm?token=" + token;
+        emailSender.send(user.getEmail(), emailSender.buildEmail(user.getfirstName(), link));
     }
 
     public int enableUser(String email) {
